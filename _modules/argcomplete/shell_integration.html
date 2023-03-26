@@ -1,0 +1,298 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Licensed under the Apache 2.0 License -->
+  <link rel="stylesheet" type="text/css" href="../../_static/fonts/open-sans/stylesheet.css" />
+  <!-- Licensed under the SIL Open Font License -->
+  <link rel="stylesheet" type="text/css" href="../../_static/fonts/source-serif-pro/source-serif-pro.css" />
+  <link rel="stylesheet" type="text/css" href="../../_static/css/bootstrap.min.css" />
+  <link rel="stylesheet" type="text/css" href="../../_static/css/bootstrap-theme.min.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+    <title>argcomplete.shell_integration &#8212; argcomplete  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/guzzle.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  
+   
+
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">argcomplete  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">argcomplete.shell_integration</a></li> 
+      </ul>
+    </div>
+    <div class="container-wrapper">
+
+      <div id="mobile-toggle">
+        <a href="#"><span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span></a>
+      </div>
+  <div id="left-column">
+    <div class="sphinxsidebar"><a href="
+    ../../index.html" class="text-logo">argcomplete</a>
+<div class="sidebar-block">
+  <div class="sidebar-wrapper">
+    <div id="main-search">
+      <form class="form-inline" action="../../search.html" method="GET" role="form">
+        <div class="input-group">
+          <input name="q" type="text" class="form-control" placeholder="Search...">
+        </div>
+        <input type="hidden" name="check_keywords" value="yes" />
+        <input type="hidden" name="area" value="default" />
+      </form>
+    </div>
+  </div>
+</div>
+      
+    </div>
+  </div>
+        <div id="right-column">
+          
+          <div role="navigation" aria-label="breadcrumbs navigation">
+            <ol class="breadcrumb">
+              <li><a href="../../index.html">Docs</a></li>
+              
+                <li><a href="../index.html">Module code</a></li>
+              
+              <li>argcomplete.shell_integration</li>
+            </ol>
+          </div>
+          
+          <div class="document clearer body">
+            
+  <h1>Source code for argcomplete.shell_integration</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="c1"># Copyright 2012-2023, Andrey Kislyuk and argcomplete contributors. Licensed under the terms of the</span>
+<span class="c1"># `Apache License, Version 2.0 &lt;http://www.apache.org/licenses/LICENSE-2.0&gt;`_. Distribution of the LICENSE and NOTICE</span>
+<span class="c1"># files with source copies of this package and derivative works is **REQUIRED** as specified by the Apache License.</span>
+<span class="c1"># See https://github.com/kislyuk/argcomplete for more info.</span>
+
+<span class="kn">from</span> <span class="nn">shlex</span> <span class="kn">import</span> <span class="n">quote</span>
+
+<span class="n">bashcode</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2"># Run something, muting output or redirecting it to the debug stream</span>
+<span class="s2"># depending on the value of _ARC_DEBUG.</span>
+<span class="s2"># If ARGCOMPLETE_USE_TEMPFILES is set, use tempfiles for IPC.</span>
+<span class="s2">__python_argcomplete_run() {</span>
+<span class="s2">    if [[ -z &quot;${ARGCOMPLETE_USE_TEMPFILES-}&quot; ]]; then</span>
+<span class="s2">        __python_argcomplete_run_inner &quot;$@&quot;</span>
+<span class="s2">        return</span>
+<span class="s2">    fi</span>
+<span class="s2">    local tmpfile=&quot;$(mktemp)&quot;</span>
+<span class="s2">    _ARGCOMPLETE_STDOUT_FILENAME=&quot;$tmpfile&quot; __python_argcomplete_run_inner &quot;$@&quot;</span>
+<span class="s2">    local code=$?</span>
+<span class="s2">    cat &quot;$tmpfile&quot;</span>
+<span class="s2">    rm &quot;$tmpfile&quot;</span>
+<span class="s2">    return $code</span>
+<span class="s2">}</span>
+
+<span class="s2">__python_argcomplete_run_inner() {</span>
+<span class="s2">    if [[ -z &quot;${_ARC_DEBUG-}&quot; ]]; then</span>
+<span class="s2">        &quot;$@&quot; 8&gt;&amp;1 9&gt;&amp;2 1&gt;/dev/null 2&gt;&amp;1</span>
+<span class="s2">    else</span>
+<span class="s2">        &quot;$@&quot; 8&gt;&amp;1 9&gt;&amp;2 1&gt;&amp;9 2&gt;&amp;1</span>
+<span class="s2">    fi</span>
+<span class="s2">}</span>
+
+<span class="s2">_python_argcomplete</span><span class="si">%(function_suffix)s</span><span class="s2">() {</span>
+<span class="s2">    local IFS=$&#39;\013&#39;</span>
+<span class="s2">    if [[ -n &quot;${ZSH_VERSION-}&quot; ]]; then</span>
+<span class="s2">        local completions</span>
+<span class="s2">        completions=($(IFS=&quot;$IFS&quot; \</span>
+<span class="s2">            COMP_LINE=&quot;$BUFFER&quot; \</span>
+<span class="s2">            COMP_POINT=&quot;$CURSOR&quot; \</span>
+<span class="s2">            _ARGCOMPLETE=1 \</span>
+<span class="s2">            _ARGCOMPLETE_SHELL=&quot;zsh&quot; \</span>
+<span class="s2">            _ARGCOMPLETE_SUPPRESS_SPACE=1 \</span>
+<span class="s2">            __python_argcomplete_run &quot;$</span><span class="si">{words[1]}</span><span class="s2">&quot;) )</span>
+<span class="s2">        _describe &quot;$</span><span class="si">{words[1]}</span><span class="s2">&quot; completions -o nosort</span>
+<span class="s2">    else</span>
+<span class="s2">        local SUPPRESS_SPACE=0</span>
+<span class="s2">        if compopt +o nospace 2&gt; /dev/null; then</span>
+<span class="s2">            SUPPRESS_SPACE=1</span>
+<span class="s2">        fi</span>
+<span class="s2">        COMPREPLY=($(IFS=&quot;$IFS&quot; \</span>
+<span class="s2">            COMP_LINE=&quot;$COMP_LINE&quot; \</span>
+<span class="s2">            COMP_POINT=&quot;$COMP_POINT&quot; \</span>
+<span class="s2">            COMP_TYPE=&quot;$COMP_TYPE&quot; \</span>
+<span class="s2">            _ARGCOMPLETE_COMP_WORDBREAKS=&quot;$COMP_WORDBREAKS&quot; \</span>
+<span class="s2">            _ARGCOMPLETE=1 \</span>
+<span class="s2">            _ARGCOMPLETE_SHELL=&quot;bash&quot; \</span>
+<span class="s2">            _ARGCOMPLETE_SUPPRESS_SPACE=$SUPPRESS_SPACE \</span>
+<span class="s2">            __python_argcomplete_run &quot;</span><span class="si">%(argcomplete_script)s</span><span class="s2">&quot;))</span>
+<span class="s2">        if [[ $? != 0 ]]; then</span>
+<span class="s2">            unset COMPREPLY</span>
+<span class="s2">        elif [[ $SUPPRESS_SPACE == 1 ]] &amp;&amp; [[ &quot;${COMPREPLY-}&quot; =~ [=/:]$ ]]; then</span>
+<span class="s2">            compopt -o nospace</span>
+<span class="s2">        fi</span>
+<span class="s2">    fi</span>
+<span class="s2">}</span>
+<span class="s2">if [[ -z &quot;${ZSH_VERSION-}&quot; ]]; then</span>
+<span class="s2">    complete </span><span class="si">%(complete_opts)s</span><span class="s2"> -F _python_argcomplete</span><span class="si">%(function_suffix)s</span><span class="s2"> </span><span class="si">%(executables)s</span><span class="s2"></span>
+<span class="s2">else</span>
+<span class="s2">    compdef _python_argcomplete</span><span class="si">%(function_suffix)s</span><span class="s2"> </span><span class="si">%(executables)s</span><span class="s2"></span>
+<span class="s2">fi</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">tcshcode</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">complete &quot;</span><span class="si">%(executable)s</span><span class="s2">&quot; &#39;p@*@`python-argcomplete-tcsh &quot;</span><span class="si">%(argcomplete_script)s</span><span class="s2">&quot;`@&#39; ;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">fishcode</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">function __fish_</span><span class="si">%(function_name)s</span><span class="s2">_complete</span>
+<span class="s2">    set -x _ARGCOMPLETE 1</span>
+<span class="s2">    set -x _ARGCOMPLETE_DFS \t</span>
+<span class="s2">    set -x _ARGCOMPLETE_IFS \n</span>
+<span class="s2">    set -x _ARGCOMPLETE_SUPPRESS_SPACE 1</span>
+<span class="s2">    set -x _ARGCOMPLETE_SHELL fish</span>
+<span class="s2">    set -x COMP_LINE (commandline -p)</span>
+<span class="s2">    set -x COMP_POINT (string length (commandline -cp))</span>
+<span class="s2">    set -x COMP_TYPE</span>
+<span class="s2">    if set -q _ARC_DEBUG</span>
+<span class="s2">        </span><span class="si">%(argcomplete_script)s</span><span class="s2"> 8&gt;&amp;1 9&gt;&amp;2 1&gt;&amp;9 2&gt;&amp;1</span>
+<span class="s2">    else</span>
+<span class="s2">        </span><span class="si">%(argcomplete_script)s</span><span class="s2"> 8&gt;&amp;1 9&gt;&amp;2 1&gt;/dev/null 2&gt;&amp;1</span>
+<span class="s2">    end</span>
+<span class="s2">end</span>
+<span class="s2">complete </span><span class="si">%(completion_arg)s</span><span class="s2"> </span><span class="si">%(executable)s</span><span class="s2"> -f -a &#39;(__fish_</span><span class="si">%(function_name)s</span><span class="s2">_complete)&#39;</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">powershell_code</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">Register-ArgumentCompleter -Native -CommandName </span><span class="si">%(executable)s</span><span class="s2"> -ScriptBlock {</span>
+<span class="s2">    param($commandName, $wordToComplete, $cursorPosition)</span>
+<span class="s2">    $completion_file = New-TemporaryFile</span>
+<span class="s2">    $env:ARGCOMPLETE_USE_TEMPFILES = 1</span>
+<span class="s2">    $env:_ARGCOMPLETE_STDOUT_FILENAME = $completion_file</span>
+<span class="s2">    $env:COMP_LINE = $wordToComplete</span>
+<span class="s2">    $env:COMP_POINT = $cursorPosition</span>
+<span class="s2">    $env:_ARGCOMPLETE = 1</span>
+<span class="s2">    $env:_ARGCOMPLETE_SUPPRESS_SPACE = 0</span>
+<span class="s2">    $env:_ARGCOMPLETE_IFS = &quot;`n&quot;</span>
+<span class="s2">    </span><span class="si">%(argcomplete_script)s</span><span class="s2"> 2&gt;&amp;1 | Out-Null</span>
+
+<span class="s2">    Get-Content $completion_file | ForEach-Object {</span>
+<span class="s2">        [System.Management.Automation.CompletionResult]::new($_, $_, &quot;ParameterValue&quot;, $_)</span>
+<span class="s2">    }</span>
+<span class="s2">    rm $completion_file</span>
+<span class="s2">    Remove-Item Env:\_ARGCOMPLETE_STDOUT_FILENAME, Env:\ARGCOMPLETE_USE_TEMPFILES, Env:\COMP_LINE, Env:\COMP_POINT, Env:\_ARGCOMPLETE, Env:\_ARGCOMPLETE_SUPPRESS_SPACE, Env:\_ARGCOMPLETE_IFS</span>
+<span class="s2">}</span>
+<span class="s2">&quot;&quot;&quot;</span>  <span class="c1"># noqa: E501</span>
+
+<span class="n">shell_codes</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;bash&quot;</span><span class="p">:</span> <span class="n">bashcode</span><span class="p">,</span> <span class="s2">&quot;tcsh&quot;</span><span class="p">:</span> <span class="n">tcshcode</span><span class="p">,</span> <span class="s2">&quot;fish&quot;</span><span class="p">:</span> <span class="n">fishcode</span><span class="p">,</span> <span class="s2">&quot;powershell&quot;</span><span class="p">:</span> <span class="n">powershell_code</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="shellcode"><a class="viewcode-back" href="../../index.html#argcomplete.shellcode">[docs]</a><span class="k">def</span> <span class="nf">shellcode</span><span class="p">(</span><span class="n">executables</span><span class="p">,</span> <span class="n">use_defaults</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="s2">&quot;bash&quot;</span><span class="p">,</span> <span class="n">complete_arguments</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">argcomplete_script</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Provide the shell code required to register a python executable for use with the argcomplete module.</span>
+
+<span class="sd">    :param list(str) executables: Executables to be completed (when invoked exactly with this name)</span>
+<span class="sd">    :param bool use_defaults: Whether to fallback to readline&#39;s default completion when no matches are generated.</span>
+<span class="sd">    :param str shell: Name of the shell to output code for</span>
+<span class="sd">    :param complete_arguments: Arguments to call complete with</span>
+<span class="sd">    :type complete_arguments: list(str) or None</span>
+<span class="sd">    :param argcomplete_script: Script to call complete with, if not the executable to complete.</span>
+<span class="sd">        If supplied, will be used to complete *all* passed executables.</span>
+<span class="sd">    :type argcomplete_script: str or None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">complete_arguments</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">complete_options</span> <span class="o">=</span> <span class="s2">&quot;-o nospace -o default -o bashdefault&quot;</span> <span class="k">if</span> <span class="n">use_defaults</span> <span class="k">else</span> <span class="s2">&quot;-o nospace -o bashdefault&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">complete_options</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">complete_arguments</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">shell</span> <span class="o">==</span> <span class="s2">&quot;bash&quot;</span> <span class="ow">or</span> <span class="n">shell</span> <span class="o">==</span> <span class="s2">&quot;zsh&quot;</span><span class="p">:</span>
+        <span class="n">quoted_executables</span> <span class="o">=</span> <span class="p">[</span><span class="n">quote</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">executables</span><span class="p">]</span>
+        <span class="n">executables_list</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">quoted_executables</span><span class="p">)</span>
+        <span class="n">script</span> <span class="o">=</span> <span class="n">argcomplete_script</span>
+        <span class="k">if</span> <span class="n">script</span><span class="p">:</span>
+            <span class="n">function_suffix</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">script</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="s2">&quot;$1&quot;</span>
+            <span class="n">function_suffix</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="n">bashcode</span> <span class="o">%</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">complete_opts</span><span class="o">=</span><span class="n">complete_options</span><span class="p">,</span>
+            <span class="n">executables</span><span class="o">=</span><span class="n">executables_list</span><span class="p">,</span>
+            <span class="n">argcomplete_script</span><span class="o">=</span><span class="n">script</span><span class="p">,</span>
+            <span class="n">function_suffix</span><span class="o">=</span><span class="n">function_suffix</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">shell</span> <span class="o">==</span> <span class="s2">&quot;fish&quot;</span><span class="p">:</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">executable</span> <span class="ow">in</span> <span class="n">executables</span><span class="p">:</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="n">argcomplete_script</span> <span class="ow">or</span> <span class="n">executable</span>
+            <span class="n">completion_arg</span> <span class="o">=</span> <span class="s2">&quot;--path&quot;</span> <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">executable</span> <span class="k">else</span> <span class="s2">&quot;--command&quot;</span>  <span class="c1"># use path for absolute paths</span>
+            <span class="n">function_name</span> <span class="o">=</span> <span class="n">executable</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span>  <span class="c1"># / not allowed in function name</span>
+
+            <span class="n">code</span> <span class="o">+=</span> <span class="n">fishcode</span> <span class="o">%</span> <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">executable</span><span class="o">=</span><span class="n">executable</span><span class="p">,</span>
+                <span class="n">argcomplete_script</span><span class="o">=</span><span class="n">script</span><span class="p">,</span>
+                <span class="n">completion_arg</span><span class="o">=</span><span class="n">completion_arg</span><span class="p">,</span>
+                <span class="n">function_name</span><span class="o">=</span><span class="n">function_name</span><span class="p">,</span>
+            <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">shell</span> <span class="o">==</span> <span class="s2">&quot;powershell&quot;</span><span class="p">:</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">executable</span> <span class="ow">in</span> <span class="n">executables</span><span class="p">:</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="n">argcomplete_script</span> <span class="ow">or</span> <span class="n">executable</span>
+            <span class="n">code</span> <span class="o">+=</span> <span class="n">powershell_code</span> <span class="o">%</span> <span class="nb">dict</span><span class="p">(</span><span class="n">executable</span><span class="o">=</span><span class="n">executable</span><span class="p">,</span> <span class="n">argcomplete_script</span><span class="o">=</span><span class="n">script</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">executable</span> <span class="ow">in</span> <span class="n">executables</span><span class="p">:</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="n">argcomplete_script</span>
+            <span class="c1"># If no script was specified, default to the executable being completed.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">script</span><span class="p">:</span>
+                <span class="n">script</span> <span class="o">=</span> <span class="n">executable</span>
+            <span class="n">code</span> <span class="o">+=</span> <span class="n">shell_codes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">shell</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">%</span> <span class="nb">dict</span><span class="p">(</span><span class="n">executable</span><span class="o">=</span><span class="n">executable</span><span class="p">,</span> <span class="n">argcomplete_script</span><span class="o">=</span><span class="n">script</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">code</span></div>
+</pre></div>
+
+          </div>
+            
+        </div>
+        <div class="clearfix"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">argcomplete  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">argcomplete.shell_integration</a></li> 
+      </ul>
+    </div>
+<script type="text/javascript">
+  $("#mobile-toggle a").click(function () {
+    $("#left-column").toggle();
+  });
+</script>
+<script type="text/javascript" src="../../_static/js/bootstrap.js"></script>
+  <div class="footer">
+    &copy; Copyright Andrey Kislyuk and argcomplete contributors. Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+  </div>
+  </body>
+</html>
